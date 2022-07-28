@@ -1,0 +1,32 @@
+const reviewSchema = new mongoose.Schema(
+  {
+    product_id: Number,
+    rating: Number,
+    reviewer_name: String,
+    email: String,
+    summary: String,
+    body: String,
+    response: String,
+    created_at: String, // timestamps, done by API?
+    photos: [{ type: Schema.Types.ObjectId, ref: "Photo" }],
+    reported: Boolean,
+    recommend: Boolean,
+    helpfulness: Number,
+  },
+  { timestamps: true } // will automatically create and set `createdAt` and `updatedAt` timestamps
+);
+
+const photoSchema = new mongoose.Schema({
+  review_id: Number,
+  url: String,
+});
+
+const characteristicsSchema = new mongoose.Schema({
+  characteristic: String,
+});
+
+const product_characteristic_ratings = new mongoose.Schema({
+  char_id: [{ type: Schema.Types.ObjectId, ref: "Characteristic" }],
+  product_id: Number,
+  char_value: Number,
+});
