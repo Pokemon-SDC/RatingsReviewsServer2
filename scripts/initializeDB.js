@@ -13,9 +13,8 @@ console.log(reviews_path);
 let connection = `postgresql://${process.env.DB_USER}:${process.env.DB_PASS}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;
 
 let client = new pg.Client(connection);
-client.connect();
 
-let database_name = `ratings_reviews3`;
+let database_name = `ratings_reviews4`;
 
 let reviews_table = `CREATE TABLE reviews (\
  id SERIAL PRIMARY KEY,\
@@ -85,16 +84,55 @@ let copy_characteristics_reviews = `COPY characteristic_reviews(id, char_id, rev
  CSV HEADER;`;
 
 let dbExists = function (dbName) {
-  client.query(
-    `SELECT datname FROM pg_database WHERE datname='${dbName}'`,
-    (err, res) => {
-      console.log(res.rows.length > 0);
-    }
-  );
+  client
+    .query(`SELECT datname FROM pg_database WHERE datname='${dbName}'`)
+    .then((res) => {
+      return res.rows.length > 0;
+    });
 };
 
-dbExists("ratings_reviews");
-dbExists("ratings_reviews2");
+client
+  .connect()
+  .then(() => {
+    client.query(reviews_table);
+  })
+  .then(() => {
+    client.query(photos_table);
+  })
+  .then(() => {
+    client.query(characteristics_table);
+  })
+  .then(() => {
+    client.query(characteristic_reviews_table);
+  })
+  .then(() => {
+    client.query(review_product_index);
+  })
+  .then(() => {
+    client.query(characteristics_product_index);
+  })
+  .then(() => {
+    client.query(copy_reviews);
+  })
+  .then(() => {
+    client.query(copy_photos);
+  })
+  .then(() => {
+    client.query(copy_characteristics);
+  })
+  .then(() => {
+    client.query(copy_characteristics_reviews);
+  })
+  .then(() => {
+    console.log("Completed database initialization! Ending connection ...");
+  })
+  .catch((err) => {
+    console.log(
+      "Error completing database initialization!  Tables already exist.  Exitting ... "
+    );
+  });
+// dbExists("ratings_reviews");
+// dbExists("ratings_reviews2");
 
 // client.query(
 //   `SELECT datname FROM pg_database WHERE datname='ratings_reviews'`,

@@ -6,8 +6,11 @@ const getCount = require("./dbControllers.js").getCount;
 const app = express();
 
 app.get("/:someTable", (req, res) => {
-  getCount();
-  res.send();
+  // bad idea for SQL injection;
+  getCount(req.params.someTable).then((data) => {
+    console.log(data);
+    res.send(data);
+  });
 });
 
 app.listen(process.env.PORT);
