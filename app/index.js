@@ -7,10 +7,15 @@ const app = express();
 
 app.get("/:someTable", (req, res) => {
   // bad idea for SQL injection;
-  getCount(req.params.someTable).then((data) => {
-    console.log(data);
-    res.send(data);
-  });
+  getCount(req.params.someTable)
+    .then((data) => {
+      console.log(data);
+      res.send(data);
+    })
+    .catch((err) => {
+      console.log(err);
+      res.send("Error finding table.  Check your params!");
+    });
 });
 
 app.listen(process.env.PORT);
