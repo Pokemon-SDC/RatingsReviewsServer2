@@ -14,4 +14,29 @@ module.exports = {
       return data[0].rows[0].count;
     });
   },
+
+  getReviewsById: function (id) {
+    return db
+      .queryAsync(`SELECT * FROM reviews WHERE product_id = ${id}`)
+      .then((data) => {
+        console.log(data);
+        return data;
+      });
+  },
+
+  getCharacteristicsById: function (id) {
+    return db
+      .queryAsync(`SELECT * FROM characteristics WHERE product_id = ${id}`)
+      .then((data) => {
+        return data[0].rows;
+      });
+  },
+
+  getRecommendedById: function (id) {
+    return db
+      .queryAsync(`SELECT recommend FROM reviews WHERE product_id = ${id}`)
+      .then((data) => {
+        return data[0].rows;
+      });
+  },
 };

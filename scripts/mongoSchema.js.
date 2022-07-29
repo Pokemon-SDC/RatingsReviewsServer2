@@ -30,3 +30,8 @@ const product_characteristic_ratings = new mongoose.Schema({
   product_id: Number,
   char_value: Number,
 });
+
+// product_id: 1, characteristic: width, char_value: 3
+// product_id: 1, characteristic: width, char_value: 5
+
+// char_id: 129021, totalCount: 3313, average: 3.1238713

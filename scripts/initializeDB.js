@@ -31,8 +31,6 @@ let reviews_table = `CREATE TABLE reviews (\
  helpfulness INT NOT NULL DEFAULT 0\
 );`;
 
-let review_product_index = `CREATE INDEX review_product_id ON "reviews"(product_id);`;
-
 let photos_table = `CREATE TABLE photos (\
  id SERIAL PRIMARY KEY,\
  url TEXT NOT NULL,\
@@ -45,10 +43,10 @@ let photos_table = `CREATE TABLE photos (\
 let characteristics_table = `CREATE TABLE characteristics (\
  id SERIAL PRIMARY KEY,\
  characteristic TEXT NOT NULL,\
- product_id INT NOT NULL\
+ product_id INT NOT NULL,\
+ total_reviews INT NOT NULL DEFAULT 0,\
+ average_value DECIMAL NOT NULL DEFAULT 0\
 );`;
-
-let characteristics_product_index = `CREATE INDEX char_product_id ON "characteristics"(product_id);`;
 
 let characteristic_reviews_table = `CREATE TABLE characteristic_reviews (\
  id SERIAL PRIMARY KEY,\
@@ -62,6 +60,11 @@ let characteristic_reviews_table = `CREATE TABLE characteristic_reviews (\
  FOREIGN KEY(review_id)\
  REFERENCES "reviews"(id)\
 );`;
+
+let reviews_product_id_idx = `CREATE INDEX reviews_product_id_idx ON "reviews"(product_id);`;
+let photos_review_id_idx = `CREATE INDEX photos_review_id_idx ON "reviews"(id);`;
+let char_product_id_idx = `CREATE INDEX char_product_id_idx ON "characteristics"(product_id);`;
+let char_reviews_char_id_idx = `CREATE INDEX char_reviews_char_id_idx ON "characteristic_reviews"(char_id);`;
 
 let copy_reviews = `COPY reviews(id, product_id, rating, created_at, summary, body, recommend, reported, reviewer_name, email, response, helpfulness)\
  FROM '${reviews_path}'\
@@ -106,21 +109,31 @@ client
     client.query(characteristic_reviews_table);
   })
   .then(() => {
-    client.query(review_product_index);
+    client.query(reviews_product_id_idx);
   })
   .then(() => {
-    client.query(characteristics_product_index);
+    client.query(photos_review_id_idx);
   })
   .then(() => {
+    client.query(char_product_id_idx);
+  })
+  .then(() => {
+    client.query(char_reviews_char_id_idx);
+  })
+  .then(() => {
+    console.log("copying reviews table ...");
     client.query(copy_reviews);
   })
   .then(() => {
+    console.log("copying photos table ...");
     client.query(copy_photos);
   })
   .then(() => {
+    console.log("copying characteristics table ...");
     client.query(copy_characteristics);
   })
   .then(() => {
+    console.log("copying characteristic_reviews table ...");
     client.query(copy_characteristics_reviews);
   })
   .then(() => {
