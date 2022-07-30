@@ -17,7 +17,10 @@ module.exports = {
 
   getReviewsById: function (id) {
     return db
-      .queryAsync(`SELECT * FROM reviews WHERE product_id = ${id}`)
+      .queryAsync(
+        `SELECT r.*, json_agg(json_build_object('id',p.id,'url', p.url)) as photos from reviews r
+       left join photos p on p.review_id = r.id where r.product_id = ${id} group by r.id;`
+      )
       .then((data) => {
         console.log(data);
         return data;

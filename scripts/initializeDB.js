@@ -44,8 +44,8 @@ let characteristics_table = `CREATE TABLE characteristics (\
  id SERIAL PRIMARY KEY,\
  characteristic TEXT NOT NULL,\
  product_id INT NOT NULL,\
- total_reviews INT NOT NULL DEFAULT 0,\
- average_value DECIMAL NOT NULL DEFAULT 0\
+ total_reviews INT NULL DEFAULT 0,\
+ average_value DECIMAL NULL DEFAULT 0\
 );`;
 
 let characteristic_reviews_table = `CREATE TABLE characteristic_reviews (\

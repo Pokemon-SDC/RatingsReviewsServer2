@@ -31,8 +31,8 @@ CREATE TABLE characteristics (
   id SERIAL PRIMARY KEY,
   characteristic TEXT NOT NULL,
   product_id INT NOT NULL,
-  total_reviews INT NOT NULL DEFAULT 0,
-  average_value DECIMAL NOT NULL DEFAULT 0
+  total_reviews INT NULL DEFAULT 0,
+  average_value DECIMAL NULL DEFAULT 0
 );
 
 CREATE INDEX char_product_id_idx ON "characteristics"(product_id);
