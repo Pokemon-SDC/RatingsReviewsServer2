@@ -211,3 +211,122 @@
 --   r.reported = false
 -- GROUP BY
 --   r.id;
+
+-- select json_build_object('characteristics',jsonb_object_agg(characteristic, charObj)) from
+-- (select c.product_id, c.characteristic, json_build_object('id',c.id, 'value', avg(cr.char_value)) charObj from characteristic_reviews cr
+-- inner join characteristics c on c.id = cr.char_id where c.product_id = 1 group by c.id) charTable;
+
+-- select rating_counts.product_id, JSON_OBJECT_AGG(rating_counts.rating, rating_counts.count) ratings from
+-- 	(select r.product_id, rating, COUNT(*) from reviews r where r.product_id = 1 group by rating, r.product_id) rating_counts group by rating_counts.product_id;
+
+-- select json_build_object('characteristics',jsonb_object_agg(characteristic, charObj),'ratings',jsonb_object_agg(ratingsTable.rating, ratingsTable.count)) from
+-- (select c.product_id, c.characteristic, json_build_object('id',c.id, 'value', avg(cr.char_value)) charObj from characteristic_reviews cr
+-- inner join characteristics c on c.id = cr.char_id where c.product_id = 16 group by c.id) charTable
+-- inner join
+-- (select r.product_id, rating, COUNT(*) from reviews r where r.product_id = 16 group by rating, r.product_id) ratingsTable
+-- on ratingsTable.product_id = charTable.product_id;
+
+-- SELECT JSON_BUILD_OBJECT(
+--   'characteristics', JSONB_OBJECT_AGG(characteristic, charObj),
+--   'ratings', JSONB_OBJECT_AGG(ratingsTable.rating, ratingsTable.count)
+--   )
+-- FROM
+--   (
+--     SELECT
+--     c.product_id,
+--     c.characteristic,
+--     JSON_BUILD_OBJECT(
+--       'id', c.id,
+--       'value', AVG(cr.char_value)
+--       ) charObj
+--     FROM characteristic_reviews cr
+--     INNER JOIN
+--       characteristics c
+--     ON
+--       c.id = cr.char_id
+--     WHERE
+--       c.product_id = 16
+--     GROUP BY
+--       c.id
+--   ) charTable
+-- INNER JOIN
+--   (
+--     SELECT
+--       r.product_id,
+--       rating,
+--       COUNT(*)
+--     FROM reviews r
+--     WHERE
+--       r.product_id = 16
+--     GROUP BY
+--       rating,
+--       r.product_id
+--   ) ratingsTable
+-- ON ratingsTable.product_id = charTable.product_id;
+
+
+
+
+SELECT JSON_BUILD_OBJECT(
+  'characteristics', JSONB_OBJECT_AGG(characteristic, charObj),
+  'ratings', JSONB_OBJECT_AGG(ratingsTable.rating, ratingsTable.count)
+)
+FROM
+  (
+    SELECT
+      c.product_id,
+      c.characteristic,
+      JSON_BUILD_OBJECT
+        (
+          'id', c.id,
+          'value', AVG(cr.char_value),
+        ) charObj
+    FROM
+      characteristic_reviews cr
+    INNER JOIN
+    (
+      SELECT
+        characteristics cav
+      ON
+        c.id = cr.char_id
+      WHERE
+        c.product_id = 16
+      GROUP BY c.id)
+      charTable
+    )
+    INNER JOIN
+      (
+        SELECT
+          r.product_id,
+          rating,
+          COUNT(*)
+        FROM
+          reviews r
+        WHERE
+          r.product_id = 16
+        GROUP BY
+          rating,
+          r.product_id
+      ) ratingsTable
+ON ratingsTable.product_id = charTable.product_id;
+INNER JOIN
+  (
+    SELECT
+    r.product_id,
+    r.recommend,
+    COUNT(*)
+    FROM
+      reviews r
+    WHERE
+      r.product_id = 16
+    GROUP BY
+      r.recommend,
+      r.product_id
+  ) recommendTable
+ON
+ratingsTable.product_id = recommendTable.product_id;
+
+inner join (select
+r.product_id, r.recommend, COUNT(*)
+from reviews r where r.product_id = 16 group by recommend, r.product_id) recommendTable
+on ratingsTable.product_id = recommendTable.product_id;

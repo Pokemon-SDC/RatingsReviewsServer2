@@ -24,6 +24,8 @@ module.exports = {
       sortMethod = "r.created_at DESC";
     } else if (sort === "relevant") {
       sortMethod = "r.helpfulness DESC, r.created_at DESC";
+    } else {
+      sortMethod = "r.id";
     }
     return db
       .queryAsync(
@@ -101,23 +103,86 @@ module.exports = {
   getMeta: function (id) {
     return db
       .queryAsync(
-        `select c.characteristic, json_build_object(c.id,avg(cr.char_value)) from characteristic_reviews cr
-        inner join characteristics c on c.id = cr.char_id where c.product_id = 7 group by c.id;`
+        `SELECT JSON_BUILD_OBJECT(
+          'characteristics', JSONB_OBJECT_AGG(characteristic, charObj),
+          'ratings', JSONB_OBJECT_AGG(ratingsTable.rating, ratingsTable.count)
+          'recommend', JSON_BUILD_OBJECT()
+          )
+        FROM
+          (
+            SELECT
+            c.product_id,
+            c.characteristic,
+            JSON_BUILD_OBJECT(
+              'id', c.id,
+              'value', AVG(cr.char_value)
+              ) charObj
+            FROM characteristic_reviews cr
+            INNER JOIN
+              characteristics c
+            ON
+              c.id = cr.char_id
+            WHERE
+              c.product_id = ${id}
+            GROUP BY
+              c.id
+          ) charTable
+        INNER JOIN
+          (
+            SELECT
+              r.product_id,
+              rating,
+              COUNT(*)
+            FROM reviews r
+            WHERE
+              r.product_id = ${id}
+            GROUP BY
+              rating,
+              r.product_id
+          ) ratingsTable
+        ON ratingsTable.product_id = charTable.product_id
+        INNER JOIN
+          (
+            SELECT
+              r.product_id,
+              r.recommend,
+              COUNT(*)
+            FROM
+              reviews r
+            WHERE
+              r.product_id = ${id}
+            GROUP BY
+              r.recommend,
+              r.product_id
+          ) recommendTable
+        ON
+        ratingsTable.product_id = recommendTable.product_id;`
       )
       .then((data) => {
-        return data[0].rows;
+        return data[0].rows[0].json_build_object;
       })
       .catch((err) => {
         console.log(err);
       });
   },
+
   reportReview: function (id) {
-    db.queryAsync(
+    return db.queryAsync(
       `
       UPDATE reviews
       SET reported = true
       WHERE
       id = ${id};`
-    ).then(() => {});
+    );
+  },
+
+  findReviewHelpful: function (id) {
+    return db.queryAsync(
+      `
+      UPDATE reviews
+      SET helpfulness = helpfulness + 1
+      WHERE
+      id = ${id};`
+    );
   },
 };
