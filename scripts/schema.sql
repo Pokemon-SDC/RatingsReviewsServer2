@@ -25,7 +25,7 @@ CREATE TABLE photos (
       REFERENCES "reviews"(id)
 );
 
-CREATE INDEX photos_review_id_idx ON "reviews"(id)
+CREATE INDEX photos_review_id_idx ON "photos"(review_id)
 
 CREATE TABLE characteristics (
   id SERIAL PRIMARY KEY,

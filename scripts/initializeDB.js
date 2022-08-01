@@ -61,8 +61,9 @@ let characteristic_reviews_table = `CREATE TABLE characteristic_reviews (\
  REFERENCES "reviews"(id)\
 );`;
 
+let review_rating_idx = `CREATE INDEX reviews_rating_idx ON "reviews"(rating);`;
 let reviews_product_id_idx = `CREATE INDEX reviews_product_id_idx ON "reviews"(product_id);`;
-let photos_review_id_idx = `CREATE INDEX photos_review_id_idx ON "reviews"(id);`;
+let photos_review_id_idx = `CREATE INDEX photos_review_id_idx ON "photos"(review_id)`;
 let char_product_id_idx = `CREATE INDEX char_product_id_idx ON "characteristics"(product_id);`;
 let char_reviews_char_id_idx = `CREATE INDEX char_reviews_char_id_idx ON "characteristic_reviews"(char_id);`;
 
@@ -97,52 +98,53 @@ let dbExists = function (dbName) {
 client
   .connect()
   .then(() => {
-    client.query(reviews_table);
+    return client.query(reviews_table);
   })
   .then(() => {
-    client.query(photos_table);
+    return client.query(photos_table);
   })
   .then(() => {
-    client.query(characteristics_table);
+    return client.query(characteristics_table);
   })
   .then(() => {
-    client.query(characteristic_reviews_table);
+    return client.query(characteristic_reviews_table);
   })
   .then(() => {
-    client.query(reviews_product_id_idx);
+    return client.query(reviews_product_id_idx);
   })
   .then(() => {
-    client.query(photos_review_id_idx);
+    return client.query(photos_review_id_idx);
   })
   .then(() => {
-    client.query(char_product_id_idx);
+    return client.query(char_product_id_idx);
   })
   .then(() => {
-    client.query(char_reviews_char_id_idx);
+    return client.query(char_reviews_char_id_idx);
   })
   .then(() => {
     console.log("copying reviews table ...");
-    client.query(copy_reviews);
+    return client.query(copy_reviews);
   })
   .then(() => {
     console.log("copying photos table ...");
-    client.query(copy_photos);
+    return client.query(copy_photos);
   })
   .then(() => {
     console.log("copying characteristics table ...");
-    client.query(copy_characteristics);
+    return client.query(copy_characteristics);
   })
   .then(() => {
     console.log("copying characteristic_reviews table ...");
-    client.query(copy_characteristics_reviews);
+    return client.query(copy_characteristics_reviews);
   })
   .then(() => {
-    console.log("Completed database initialization! Ending connection ...");
+    return console.log(
+      "Completed database initialization! Ending connection ..."
+    );
   })
   .catch((err) => {
-    console.log(
-      "Error completing database initialization!  Tables already exist.  Exitting ... "
-    );
+    console.log(err);
+    console.log("Error completing database initialization!  Exitting ... ");
   });
 // dbExists("ratings_reviews");
 // dbExists("ratings_reviews2");
