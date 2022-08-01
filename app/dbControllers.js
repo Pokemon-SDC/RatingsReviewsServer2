@@ -105,8 +105,8 @@ module.exports = {
       .queryAsync(
         `SELECT JSON_BUILD_OBJECT(
           'characteristics', JSONB_OBJECT_AGG(characteristic, charObj),
-          'ratings', JSONB_OBJECT_AGG(ratingsTable.rating, ratingsTable.count)
-          'recommend', JSON_BUILD_OBJECT()
+          'ratings', JSONB_OBJECT_AGG(ratingsTable.rating, ratingsTable.count),
+          'recommend', JSONB_OBJECT_AGG(recommendTable.recommend, recommendTable.count)
           )
         FROM
           (
