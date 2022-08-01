@@ -264,69 +264,102 @@
 --   ) ratingsTable
 -- ON ratingsTable.product_id = charTable.product_id;
 
+-- SELECT JSON_BUILD_OBJECT(
+--   'characteristics', JSONB_OBJECT_AGG(characteristic, charObj),
+--   'ratings', JSONB_OBJECT_AGG(ratingsTable.rating, ratingsTable.count)
+-- )
+-- FROM
+--   (
+--     SELECT
+--       c.product_id,
+--       c.characteristic,
+--       JSON_BUILD_OBJECT
+--         (
+--           'id', c.id,
+--           'value', AVG(cr.char_value),
+--         ) charObj
+--     FROM
+--       characteristic_reviews cr
+--     INNER JOIN
+--     (
+--       SELECT
+--         characteristics cav
+--       ON
+--         c.id = cr.char_id
+--       WHERE
+--         c.product_id = 16
+--       GROUP BY c.id)
+--       charTable
+--     )
+--     INNER JOIN
+--       (
+--         SELECT
+--           r.product_id,
+--           rating,
+--           COUNT(*)
+--         FROM
+--           reviews r
+--         WHERE
+--           r.product_id = 16
+--         GROUP BY
+--           rating,
+--           r.product_id
+--       ) ratingsTable
+-- ON ratingsTable.product_id = charTable.product_id;
+-- INNER JOIN
+--   (
+--     SELECT
+--     r.product_id,
+--     r.recommend,
+--     COUNT(*)
+--     FROM
+--       reviews r
+--     WHERE
+--       r.product_id = 16
+--     GROUP BY
+--       r.recommend,
+--       r.product_id
+--   ) recommendTable
+-- ON
+-- ratingsTable.product_id = recommendTable.product_id;
+
+-- inner join (select
+-- r.product_id, r.recommend, COUNT(*)
+-- from reviews r where r.product_id = 16 group by recommend, r.product_id) recommendTable
+-- on ratingsTable.product_id = recommendTable.product_id;
 
 
 
-SELECT JSON_BUILD_OBJECT(
-  'characteristics', JSONB_OBJECT_AGG(characteristic, charObj),
-  'ratings', JSONB_OBJECT_AGG(ratingsTable.rating, ratingsTable.count)
-)
-FROM
-  (
-    SELECT
-      c.product_id,
-      c.characteristic,
-      JSON_BUILD_OBJECT
-        (
-          'id', c.id,
-          'value', AVG(cr.char_value),
-        ) charObj
-    FROM
-      characteristic_reviews cr
-    INNER JOIN
-    (
-      SELECT
-        characteristics cav
-      ON
-        c.id = cr.char_id
-      WHERE
-        c.product_id = 16
-      GROUP BY c.id)
-      charTable
-    )
-    INNER JOIN
-      (
-        SELECT
-          r.product_id,
-          rating,
-          COUNT(*)
-        FROM
-          reviews r
-        WHERE
-          r.product_id = 16
-        GROUP BY
-          rating,
-          r.product_id
-      ) ratingsTable
-ON ratingsTable.product_id = charTable.product_id;
-INNER JOIN
-  (
-    SELECT
-    r.product_id,
-    r.recommend,
-    COUNT(*)
-    FROM
-      reviews r
-    WHERE
-      r.product_id = 16
-    GROUP BY
-      r.recommend,
-      r.product_id
-  ) recommendTable
-ON
-ratingsTable.product_id = recommendTable.product_id;
-
-inner join (select
-r.product_id, r.recommend, COUNT(*)
-from reviews r where r.product_id = 16 group by recommend, r.product_id) recommendTable
-on ratingsTable.product_id = recommendTable.product_id;
+pool.connect((err, client, done) => {
+  const shouldAbort = err => {
+    if (err) {
+      console.error('Error in transaction', err.stack)
+      client.query('ROLLBACK', err => {
+        if (err) {
+          console.error('Error rolling back client', err.stack)
+        }
+        // release the client back to the pool
+        done()
+      })
+    }
+    return !!err
+  }
+  client.query('BEGIN', err => {
+    if (shouldAbort(err)) return
+    const queryText = 'INSERT INTO users(name) VALUES($1) RETURNING id'
+    client.query(queryText, ['brianc'], (err, res) => {
+      if (shouldAbort(err)) return
+      const insertPhotoText = 'INSERT INTO photos(user_id, photo_url) VALUES ($1, $2)'
+      const insertPhotoValues = [res.rows[0].id, 's3.bucket.foo']
+      client.query(insertPhotoText, insertPhotoValues, (err, res) => {
+        if (shouldAbort(err)) return
+        client.query('COMMIT', err => {
+          if (err) {
+            console.error('Error committing transaction', err.stack)
+          }
+          done()
+        })
+      })
+    })
+  })
+})

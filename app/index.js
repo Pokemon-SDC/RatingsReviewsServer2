@@ -32,6 +32,16 @@ app.get("/reviews/meta", (req, res) => {
     });
 });
 
+app.post("/reviews", (req, res) => {
+  db.addReview(req.body)
+    .then(() => {
+      res.status(201).send();
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+});
+
 app.put("/reviews/:review_id/report", (req, res) => {
   db.reportReview(req.params.review_id)
     .then(() => {
@@ -53,8 +63,6 @@ app.put("/reviews/:review_id/helpful", (req, res) => {
       console.log(err);
     });
 });
-
-app.post("/reviews", (res, req) => {});
 
 app.listen(process.env.PORT);
 console.log(`listening on port ${process.env.PORT}`);

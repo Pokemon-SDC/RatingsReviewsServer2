@@ -126,16 +126,52 @@ client
     return client.query(copy_reviews);
   })
   .then(() => {
+    return client.query(
+      `SELECT
+      SETVAL(
+        (SELECT PG_GET_SERIAL_SEQUENCE('"reviews"', 'id')),
+      (SELECT (MAX("id") + 1) FROM "reviews"),
+      FALSE);`
+    );
+  })
+  .then(() => {
     console.log("copying photos table ...");
     return client.query(copy_photos);
+  })
+  .then(() => {
+    return client.query(
+      `SELECT
+      SETVAL(
+        (SELECT PG_GET_SERIAL_SEQUENCE('"photos"', 'id')),
+      (SELECT (MAX("id") + 1) FROM "photos"),
+      FALSE);`
+    );
   })
   .then(() => {
     console.log("copying characteristics table ...");
     return client.query(copy_characteristics);
   })
   .then(() => {
+    return client.query(
+      `SELECT
+      SETVAL(
+        (SELECT PG_GET_SERIAL_SEQUENCE('"characteristics"', 'id')),
+      (SELECT (MAX("id") + 1) FROM "characteristics"),
+      FALSE);`
+    );
+  })
+  .then(() => {
     console.log("copying characteristic_reviews table ...");
     return client.query(copy_characteristics_reviews);
+  })
+  .then(() => {
+    return client.query(
+      `SELECT
+      SETVAL(
+        (SELECT PG_GET_SERIAL_SEQUENCE('"characteristic_reviews"', 'id')),
+      (SELECT (MAX("id") + 1) FROM "characteristic_reviews"),
+      FALSE);`
+    );
   })
   .then(() => {
     return console.log(
