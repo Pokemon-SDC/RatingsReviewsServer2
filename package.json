@@ -26,5 +26,9 @@
     "nodemon": "^2.0.19",
     "pg": "^8.7.3",
     "pg-promise": "^10.11.1"
+  },
+  "devDependencies": {
+    "cors": "^2.8.5",
+    "supertest": "^6.2.4"
   }
 }

@@ -19,16 +19,16 @@ module.exports = {
     });
   },
 
-  getReviewsById: function (id, count, page, sort) {
-    let sortMethod;
+  getReviewsById: function (req, res) {
+    console.log(req.query.product_id);
+    let { product_id, page, count, sort } = req.query;
+    let sortMethod = "r.id";
     if (sort === "helpful") {
       sortMethod = "r.helpfulness DESC";
     } else if (sort === "newest") {
       sortMethod = "r.created_at DESC";
     } else if (sort === "relevant") {
       sortMethod = "r.helpfulness DESC, r.created_at DESC";
-    } else {
-      sortMethod = "r.id";
     }
     return db
       .queryAsync(
@@ -60,7 +60,7 @@ module.exports = {
       ON
         photoJoin.review_id = r.id
       WHERE
-        r.product_id = ${id}
+        r.product_id = ${product_id}
       AND
         r.reported = false
       GROUP BY
@@ -77,16 +77,20 @@ module.exports = {
           obj.date = new Date(parseInt(obj.date));
         });
         let responseObject = {
-          product_id: id,
+          product_id: product_id,
           page: page,
           count: data[0].rows.length,
           results: data[0].rows,
         };
-        return responseObject;
+        res.status(200).send(responseObject);
+      })
+      .catch((err) => {
+        console.log(err);
+        res.status(400).send();
       });
   },
 
-  getMeta: function (id) {
+  getMeta: function (req, res) {
     return db
       .queryAsync(
         `SELECT JSON_BUILD_OBJECT(
@@ -109,7 +113,7 @@ module.exports = {
             ON
               c.id = cr.char_id
             WHERE
-              c.product_id = ${id}
+              c.product_id = ${req.query.product_id}
             GROUP BY
               c.id
           ) charTable
@@ -121,7 +125,7 @@ module.exports = {
               COUNT(*)
             FROM reviews r
             WHERE
-              r.product_id = ${id}
+              r.product_id = ${req.query.product_id}
             GROUP BY
               rating,
               r.product_id
@@ -136,7 +140,7 @@ module.exports = {
             FROM
               reviews r
             WHERE
-              r.product_id = ${id}
+              r.product_id = ${req.query.product_id}
             GROUP BY
               r.recommend,
               r.product_id
@@ -145,16 +149,19 @@ module.exports = {
         ratingsTable.product_id = recommendTable.product_id;`
       )
       .then((data) => {
-        return data[0].rows[0].json_build_object;
+        res.status(200).send(data[0].rows[0].json_build_object);
+        // return data[0].rows[0].json_build_object;
       })
       .catch((err) => {
         console.log(err);
+        res.status(400).send();
       });
   },
 
-  addReview: async function (reviewObj) {
+  addReview: async function (req, res) {
     const client = await pool.connect();
     let x = new Date().getTime();
+    let reviewObj = req.body;
     let charObj = reviewObj.characteristics;
     let reviewValues = [
       parseInt(reviewObj.product_id),
@@ -174,10 +181,10 @@ module.exports = {
       await client.query("BEGIN");
       const reviewQuery =
         "INSERT INTO reviews (product_id, rating, reviewer_name, email, summary, body, response, created_at, reported, recommend, helpfulness) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id";
-      const res = await client.query(reviewQuery, reviewValues);
+      const response = await client.query(reviewQuery, reviewValues);
       const asyncLoop = async () => {
         for (let i = 0; i < reviewObj.photos.length; i++) {
-          let values = [reviewObj.photos[i], res.rows[0].id];
+          let values = [reviewObj.photos[i], response.rows[0].id];
           await client.query(
             "INSERT INTO photos (url, review_id) VALUES ($1, $2)",
             values
@@ -187,84 +194,61 @@ module.exports = {
       await asyncLoop();
       const asyncLoop2 = async () => {
         for (let k in charObj) {
-          let values = [parseInt(k), parseInt(charObj[k]), res.rows[0].id];
+          let values = [parseInt(k), parseInt(charObj[k]), response.rows[0].id];
           await client.query(
             "INSERT INTO characteristic_reviews (char_id, char_value, review_id) values ($1, $2, $3)",
             values
           );
         }
       };
-      await asyncLoop2();
+      await asyncLoop2(); // successfully added to database
       await client.query("COMMIT");
+      res.status(201);
     } catch (e) {
-      console.log("rollin back");
+      res.status(400);
       console.log(e);
       await client.query("ROLLBACK");
       throw e;
+      // could not enter into database;
     } finally {
       client.release();
+      res.send();
+      return;
     }
   },
 
-  // addReview2: async function (reviewObj) {
-  //   let x = new Date().getTime();
-  //   let values = [
-  //     parseInt(reviewObj.product_id),
-  //     parseInt(reviewObj.rating),
-  //     reviewObj.name,
-  //     reviewObj.email,
-  //     reviewObj.summary,
-  //     reviewObj.body,
-  //     null,
-  //     parseInt(x),
-  //     false,
-  //     reviewObj.recommend,
-  //     0,
-  //   ];
-  //   let photoValues = reviewObj.photos;
-  //   let y = await pool.query(
-  //     "INSERT INTO reviews (product_id, rating, reviewer_name, email, summary, body, response, created_at, reported, recommend, helpfulness) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id",
-  //     values
-  //   );
-  //   console.log(y.rows[0].id);
-  //   const photoText = "INSERT INTO photos (url, review_id) VALUES ($1, $2)";
-  //   const forLoop = async (insert) => {
-  //     for (let i = 0; i < photoValues.length; i++) {
-  //       const url = [photoValues[i], y.rows[0].id];
-  //       const insertion = await pool.query(photoText, url);
-  //       console.log("the insertion: ", insertion);
-  //     }
-  //   };
-  //   forLoop();
-  // },
-
-  //   body: "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
-  // characteristics: {135219: 3, 135220: 3, 135221: 5, 135222: 5}
-  // email: "adfs@email.com"
-  // name: "asdf"
-  // photos: []
-  // product_id: 40344
-  // rating: 5
-  // recommend: true
-  // summary: "1231231231231312312312312312"
-
-  reportReview: function (id) {
-    return db.queryAsync(
-      `
+  reportReview: function (req, res) {
+    return db
+      .queryAsync(
+        `
       UPDATE reviews
-      SET reported = true
+        SET reported = true
       WHERE
-      id = ${id};`
-    );
+        id = ${req.params.review_id};`
+      )
+      .then(() => {
+        res.status(204).send();
+      })
+      .catch((err) => {
+        console.log(err);
+        res.status(400).send();
+      });
   },
 
-  findReviewHelpful: function (id) {
-    return db.queryAsync(
+  findReviewHelpful: function (req, res) {
+    db.queryAsync(
       `
       UPDATE reviews
-      SET helpfulness = helpfulness + 1
+        SET helpfulness = helpfulness + 1
       WHERE
-      id = ${id};`
-    );
+        id = ${req.params.review_id};`
+    )
+      .then(() => {
+        res.status(204).send();
+      })
+      .catch((err) => {
+        console.log(err);
+        res.status(400).send();
+      });
   },
 };

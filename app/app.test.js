@@ -14,7 +14,6 @@ let badpoint = `/reviews/?product_id=${reviewQuery.product_id}&sort=relevant&pag
 describe("given an endpoint with proper params", () => {
   test("should recieve a 200 status code", async () => {
     const response = await request(app).get(endpoint);
-    console.log(response);
     expect(response.statusCode).toBe(200);
   }),
     test("should recieve a JSON object", async () => {
@@ -33,7 +32,6 @@ describe("given an endpoint with proper params", () => {
 describe("should have proper results", () => {
   test("should recieve a results array of length 5", async () => {
     const response = await request(app).get(endpoint);
-    console.log(response.body.results);
     expect(Array.isArray(response.body.results)).toBe(true);
     expect(response.body.results.length > 0).toBe(true);
     expect(response.body.results.length).toBe(5);
@@ -42,7 +40,6 @@ describe("should have proper results", () => {
       (reviewQuery.sort = "helpful"),
         (endpoint = `/reviews/?product_id=${reviewQuery.product_id}&sort=${reviewQuery.sort}&count=${reviewQuery.count}&page=${reviewQuery.page}`);
       const response = await request(app).get(endpoint);
-      console.log(response.body.results);
       expect(
         response.body.results[0].helpfulness >=
           response.body.results[1].helpfulness
@@ -61,7 +58,6 @@ describe("should have proper results", () => {
     (reviewQuery.sort = "newest"),
       (endpoint = `/reviews/?product_id=${reviewQuery.product_id}&sort=${reviewQuery.sort}&count=${reviewQuery.count}&page=${reviewQuery.page}`);
     const response = await request(app).get(endpoint);
-    console.log(response.body.results);
     expect(response.body.results[0].date >= response.body.results[1].date).toBe(
       true
     );
@@ -84,10 +80,9 @@ describe("should receive a 400 for bad queries", () => {
 describe("should insert into database upon post request", () => {
   test("should add 1 review to reviews table from a post to /reviews, 3 to photos table, 2 to characteristic_reviews table", async () => {
     const beforeReviews = await getCount("reviews");
-    console.log(beforeReviews);
     const beforePhotos = await getCount("photos");
     const beforeCR = await getCount("characteristic_reviews");
-    await request(app)
+    let response = await request(app)
       .post("/reviews")
       .send({
         product_id: 1,
@@ -109,14 +104,17 @@ describe("should insert into database upon post request", () => {
     expect(parseInt(afterReviews)).toBe(parseInt(beforeReviews) + 1);
     expect(parseInt(afterPhotos)).toBe(parseInt(beforePhotos) + 3);
     expect(parseInt(afterCR)).toBe(parseInt(beforeCR) + 2);
+    expect(response.statusCode).toBe(201);
   });
+});
 
+describe("should not add rows for a broken request", () => {
   test("should not add any rows to the database on a broken request", async () => {
     const beforeReviews = await getCount("reviews");
     console.log(beforeReviews);
     const beforePhotos = await getCount("photos");
     const beforeCR = await getCount("characteristic_reviews");
-    await request(app)
+    let response = await request(app)
       .post("/reviews")
       .send({
         product_id: 1,
@@ -134,8 +132,10 @@ describe("should insert into database upon post request", () => {
     const afterReviews = await getCount("reviews");
     const afterPhotos = await getCount("photos");
     const afterCR = await getCount("characteristic_reviews");
+    // await new Promise(process.nextTick);
     expect(parseInt(afterReviews)).toBe(parseInt(beforeReviews));
     expect(parseInt(afterPhotos)).toBe(parseInt(beforePhotos));
     expect(parseInt(afterCR)).toBe(parseInt(beforeCR));
+    expect(response.statusCode).toBe(400);
   });
 });
