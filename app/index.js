@@ -2,6 +2,7 @@ const express = require("express");
 const path = require("path");
 require("dotenv").config();
 const db = require("./dbControllers.js");
+const request = require("supertest");
 // const getCount = require("./dbControllers.js").getCount;
 
 const app = express();
@@ -18,7 +19,7 @@ app.get("/reviews/", (req, res) => {
       res.status(200).send(data);
     })
     .catch((err) => {
-      res.status(404).send();
+      res.status(400).send();
     });
 });
 
@@ -66,3 +67,5 @@ app.put("/reviews/:review_id/helpful", (req, res) => {
 
 app.listen(process.env.PORT);
 console.log(`listening on port ${process.env.PORT}`);
+
+module.exports = app;

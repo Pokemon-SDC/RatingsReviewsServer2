@@ -21,7 +21,6 @@ module.exports = {
 
   getReviewsById: function (id, count, page, sort) {
     let sortMethod;
-    console.log(sort);
     if (sort === "helpful") {
       sortMethod = "r.helpfulness DESC";
     } else if (sort === "newest") {
@@ -71,7 +70,6 @@ module.exports = {
       LIMIT ${count};`
       )
       .then((data) => {
-        console.log(data);
         data[0].rows.forEach(function (obj) {
           if (obj.photos[0] === null) {
             obj.photos = [];
@@ -158,7 +156,7 @@ module.exports = {
     const client = await pool.connect();
     let x = new Date().getTime();
     let charObj = reviewObj.characteristics;
-    let values = [
+    let reviewValues = [
       parseInt(reviewObj.product_id),
       parseInt(reviewObj.rating),
       reviewObj.name,
@@ -174,31 +172,26 @@ module.exports = {
     // clean this up omg;
     try {
       await client.query("BEGIN");
-      const queryText =
+      const reviewQuery =
         "INSERT INTO reviews (product_id, rating, reviewer_name, email, summary, body, response, created_at, reported, recommend, helpfulness) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id";
-      const res = await client.query(queryText, values);
-      let photoValues = reviewObj.photos.map(function (url) {
-        return [url, res.rows[0].id];
-      });
-      console.log(photoValues);
-      const photoText = "INSERT INTO photos (url, review_id) VALUES ($1, $2)";
+      const res = await client.query(reviewQuery, reviewValues);
       const asyncLoop = async () => {
         for (let i = 0; i < reviewObj.photos.length; i++) {
-          const url = [reviewObj.photos[i], res.rows[0].id];
-          const insertion = await client.query(photoText, url);
-          console.log("the insertion: ", insertion);
+          let values = [reviewObj.photos[i], res.rows[0].id];
+          await client.query(
+            "INSERT INTO photos (url, review_id) VALUES ($1, $2)",
+            values
+          );
         }
       };
       await asyncLoop();
       const asyncLoop2 = async () => {
         for (let k in charObj) {
           let values = [parseInt(k), parseInt(charObj[k]), res.rows[0].id];
-          console.log("char insertion values ", values);
-          let insertion = await client.query(
+          await client.query(
             "INSERT INTO characteristic_reviews (char_id, char_value, review_id) values ($1, $2, $3)",
             values
           );
-          console.log("the chars insertion: ", insertion);
         }
       };
       await asyncLoop2();
