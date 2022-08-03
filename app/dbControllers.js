@@ -82,6 +82,7 @@ module.exports = {
           count: data[0].rows.length,
           results: data[0].rows,
         };
+        console.log(responseObject);
         res.status(200).send(responseObject);
       })
       .catch((err) => {
@@ -158,43 +159,125 @@ module.exports = {
       });
   },
 
+  // addReview: async function (req, res) {
+  //   const client = await pool.connect();
+  //   let x = new Date().getTime();
+  //   let reviewObj = req.body;
+  //   let charObj = reviewObj.characteristics;
+  //   let reviewValues = [
+  //     parseInt(reviewObj.product_id),
+  //     parseInt(reviewObj.rating),
+  //     reviewObj.name,
+  //     reviewObj.email,
+  //     reviewObj.summary,
+  //     reviewObj.body,
+  //     null,
+  //     parseInt(x),
+  //     false,
+  //     reviewObj.recommend,
+  //     0,
+  //   ];
+  // clean this up omg;
+  //   try {
+  //     await client.query("BEGIN");
+  //     const reviewQuery =
+  //       "INSERT INTO reviews (product_id, rating, reviewer_name, email, summary, body, response, created_at, reported, recommend, helpfulness) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id";
+  //     const response = await client.query(reviewQuery, reviewValues);
+  //     const asyncLoop = async () => {
+  //       for (let i = 0; i < reviewObj.photos.length; i++) {
+  //         let values = [reviewObj.photos[i], response.rows[0].id];
+  //         await client.query(
+  //           "INSERT INTO photos (url, review_id) VALUES ($1, $2)",
+  //           values
+  //         );
+  //       }
+  //     };
+  //     await asyncLoop();
+  //     const asyncLoop2 = async () => {
+  //       for (let k in charObj) {
+  //         let values = [parseInt(k), parseInt(charObj[k]), response.rows[0].id];
+  //         await client.query(
+  //           "INSERT INTO characteristic_reviews (char_id, char_value, review_id) values ($1, $2, $3)",
+  //           values
+  //         );
+  //       }
+  //     };
+  //     await asyncLoop2(); // successfully added to database
+  //     await client.query("COMMIT");
+  //     res.status(201);
+  //   } catch (e) {
+  //     res.status(400);
+  //     console.log(e);
+  //     await client.query("ROLLBACK");
+  //     throw e;
+  //     // could not enter into database;
+  //   } finally {
+  //     client.release();
+  //     res.send();
+  //     return;
+  //   }
+  // },
   addReview: async function (req, res) {
+    const reviewQuery =
+      "INSERT INTO\
+        reviews (\
+          product_id, \
+          rating, \
+          reviewer_name, \
+          email, \
+          summary, \
+          body, \
+          response, \
+          created_at, \
+          reported, \
+          recommend, \
+          helpfulness) \
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) \
+      RETURNING id";
+    const photoQuery =
+      "\
+      INSERT INTO \
+        photos (\
+          url, \
+          review_id) \
+      VALUES ($1, $2)";
+    const charsQuery =
+      "\
+      INSERT INTO \
+        characteristic_reviews (\
+          char_id, \
+          char_value, \
+          review_id) \
+      VALUES ($1, $2, $3)";
     const client = await pool.connect();
     let x = new Date().getTime();
-    let reviewObj = req.body;
-    let charObj = reviewObj.characteristics;
+    let charObj = req.body.characteristics;
     let reviewValues = [
-      parseInt(reviewObj.product_id),
-      parseInt(reviewObj.rating),
-      reviewObj.name,
-      reviewObj.email,
-      reviewObj.summary,
-      reviewObj.body,
+      parseInt(req.body.product_id),
+      parseInt(req.body.rating),
+      req.body.name,
+      req.body.email,
+      req.body.summary,
+      req.body.body,
       null,
       parseInt(x),
       false,
-      reviewObj.recommend,
+      req.body.recommend,
       0,
     ];
     // clean this up omg;
     try {
       await client.query("BEGIN");
-      const reviewQuery =
-        "INSERT INTO reviews (product_id, rating, reviewer_name, email, summary, body, response, created_at, reported, recommend, helpfulness) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id";
-      const response = await client.query(reviewQuery, reviewValues);
-      const asyncLoop = async () => {
-        for (let i = 0; i < reviewObj.photos.length; i++) {
-          let values = [reviewObj.photos[i], response.rows[0].id];
-          await client.query(
-            "INSERT INTO photos (url, review_id) VALUES ($1, $2)",
-            values
-          );
-        }
-      };
-      await asyncLoop();
+      let reviewId = await client.query(reviewQuery, reviewValues);
+      await Promise.all(
+        req.body.photos.map(function (url) {
+          let photoValues = [url, reviewId.rows[0].id];
+          return client.query(photoQuery, photoValues);
+        })
+      );
       const asyncLoop2 = async () => {
         for (let k in charObj) {
-          let values = [parseInt(k), parseInt(charObj[k]), response.rows[0].id];
+          let values = [parseInt(k), parseInt(charObj[k]), reviewId.rows[0].id];
           await client.query(
             "INSERT INTO characteristic_reviews (char_id, char_value, review_id) values ($1, $2, $3)",
             values

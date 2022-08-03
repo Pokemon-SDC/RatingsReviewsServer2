@@ -1,6 +1,6 @@
-const app = require("./index.js");
+const app = require("../app");
 const request = require("supertest");
-const getCount = require("./dbControllers.js").getCount;
+const getCount = require("../app/dbControllers.js").getCount;
 
 let reviewQuery = {
   product_id: 1,
