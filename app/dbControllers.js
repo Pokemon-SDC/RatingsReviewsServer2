@@ -22,29 +22,88 @@ module.exports = {
   getReviewsById: function (req, res) {
     console.log(req.query.product_id);
     let { product_id, page, count, sort } = req.query;
-    let sortMethod = "r.id";
+    let sortMethod = "count_reviews.id ASC";
+    let offset = page * count - count;
     if (sort === "helpful") {
-      sortMethod = "r.helpfulness DESC";
+      sortMethod = "count_reviews.helpfulness DESC";
     } else if (sort === "newest") {
-      sortMethod = "r.created_at DESC";
+      sortMethod = "count_reviews.created_at DESC";
     } else if (sort === "relevant") {
-      sortMethod = "r.helpfulness DESC, r.created_at DESC";
+      sortMethod =
+        "count_reviews.helpfulness DESC, count_reviews.created_at DESC";
     }
-    return db
-      .queryAsync(
-        `SELECT
-        r.body,
-        r.created_at date,
-        r.helpfulness,
+
+    let someQuery = {
+      text: "WITH\
+      count_reviews\
+  AS\
+      (SELECT * from reviews r where r.product_id = $1 limit $2 offset $3)\
+  SELECT\
+    count_reviews.body,\
+    count_reviews.created_at date,\
+    count_reviews.helpfulness,\
+    JSON_AGG(photoJoin.photoJoinObj) photos,\
+    count_reviews.rating,\
+    count_reviews.recommend,\
+    count_reviews.response,\
+    count_reviews.id,\
+    count_reviews.reviewer_name,\
+    count_reviews.summary\
+  FROM\
+    count_reviews\
+  LEFT JOIN\
+    (\
+      SELECT\
+        p.review_id,\
+        JSON_BUILD_OBJECT(p.id, p.url) photoJoinObj\
+      FROM\
+        photos p\
+      INNER JOIN\
+        count_reviews\
+      ON\
+        p.review_id = count_reviews.id\
+      ) photoJoin\
+  ON\
+    photoJoin.review_id = count_reviews.id\
+  WHERE\
+    count_reviews.product_id = $1\
+  AND\
+    count_reviews.reported = false\
+  GROUP BY\
+    count_reviews.id,\
+    count_reviews.body,\
+    count_reviews.created_at,\
+    count_reviews.helpfulness,\
+    count_reviews.rating,\
+    count_reviews.recommend,\
+    count_reviews.response,\
+    count_reviews.reviewer_name,\
+    count_reviews.summary\
+  ORDER BY\
+    $4;",
+      values: [product_id, count, page * count - count, sortMethod],
+    };
+    return (
+      db
+        .queryAsync(
+          `
+      WITH
+          count_reviews
+      AS
+          (SELECT * from reviews r where r.product_id = ${product_id} limit ${count} offset ${offset})
+      SELECT
+        count_reviews.body,
+        count_reviews.created_at date,
+        count_reviews.helpfulness,
         JSON_AGG(photoJoin.photoJoinObj) photos,
-        r.rating,
-        r.recommend,
-        r.response,
-        r.id review_id,
-        r.reviewer_name,
-        r.summary
+        count_reviews.rating,
+        count_reviews.recommend,
+        count_reviews.response,
+        count_reviews.id,
+        count_reviews.reviewer_name,
+        count_reviews.summary
       FROM
-        reviews r
+        count_reviews
       LEFT JOIN
         (
           SELECT
@@ -53,42 +112,53 @@ module.exports = {
           FROM
             photos p
           INNER JOIN
-            reviews r
+            count_reviews
           ON
-            p.review_id = r.id
+            p.review_id = count_reviews.id
           ) photoJoin
       ON
-        photoJoin.review_id = r.id
+        photoJoin.review_id = count_reviews.id
       WHERE
-        r.product_id = ${product_id}
+        count_reviews.product_id = ${product_id}
       AND
-        r.reported = false
+        count_reviews.reported = false
       GROUP BY
-        r.id
+        count_reviews.id,
+        count_reviews.body,
+        count_reviews.created_at,
+        count_reviews.helpfulness,
+        count_reviews.rating,
+        count_reviews.recommend,
+        count_reviews.response,
+        count_reviews.reviewer_name,
+        count_reviews.summary
       ORDER BY
-        ${sortMethod}
-      LIMIT ${count};`
-      )
-      .then((data) => {
-        data[0].rows.forEach(function (obj) {
-          if (obj.photos[0] === null) {
-            obj.photos = [];
-          }
-          obj.date = new Date(parseInt(obj.date));
-        });
-        let responseObject = {
-          product_id: product_id,
-          page: page,
-          count: data[0].rows.length,
-          results: data[0].rows,
-        };
-        console.log(responseObject);
-        res.status(200).send(responseObject);
-      })
-      .catch((err) => {
-        console.log(err);
-        res.status(400).send();
-      });
+        ${sortMethod};`
+        )
+        // return db
+        //   .query(someQuery)
+        .then((data) => {
+          console.log(data[0].rows);
+          data[0].rows.forEach(function (obj) {
+            if (obj.photos[0] === null) {
+              obj.photos = [];
+            }
+            obj.date = new Date(parseInt(obj.date));
+          });
+          let responseObject = {
+            product_id: product_id,
+            page: page,
+            count: data[0].rows.length,
+            results: data[0].rows,
+          };
+          console.log(responseObject);
+          res.status(200).send(responseObject);
+        })
+        .catch((err) => {
+          console.log(err);
+          res.status(400).send(err);
+        })
+    );
   },
 
   getMeta: function (req, res) {
@@ -269,22 +339,26 @@ module.exports = {
     try {
       await client.query("BEGIN");
       let reviewId = await client.query(reviewQuery, reviewValues);
-      await Promise.all(
-        req.body.photos.map(function (url) {
-          let photoValues = [url, reviewId.rows[0].id];
-          return client.query(photoQuery, photoValues);
-        })
-      );
-      const asyncLoop2 = async () => {
-        for (let k in charObj) {
-          let values = [parseInt(k), parseInt(charObj[k]), reviewId.rows[0].id];
-          await client.query(
-            "INSERT INTO characteristic_reviews (char_id, char_value, review_id) values ($1, $2, $3)",
-            values
-          );
-        }
-      };
-      await asyncLoop2(); // successfully added to database
+      let charObjArr = [];
+      for (let k in charObj) {
+        charObjArr.push([parseInt(k), charObj[k]]);
+      }
+      await Promise.all([
+        Promise.all(
+          req.body.photos.map(function (url) {
+            let photoValues = [url, reviewId.rows[0].id];
+            return client.query(photoQuery, photoValues);
+          })
+        ),
+        Promise.all(
+          charObjArr.map(function (charTuple) {
+            return client.query(charsQuery, [
+              ...charTuple,
+              reviewId.rows[0].id,
+            ]);
+          })
+        ),
+      ]);
       await client.query("COMMIT");
       res.status(201);
     } catch (e) {

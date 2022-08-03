@@ -2,22 +2,6 @@ import http from "k6/http";
 import { sleep } from "k6";
 
 export let options = {
-  // stages: [
-  //   { target: 1, duration: "15s" },
-  //   { target: 10, duration: "0s" },
-  //   { target: 10, duration: "15s" },
-  //   { target: 15, duration: "0s" },
-  //   { target: 15, duration: "15s" },
-  //   { target: 50, duration: "0s" },
-  //   { target: 50, duration: "15s" },
-  //   { target: 100, duration: "0s" },
-  //   { target: 100, duration: "15s" },
-  //   { target: 1000, duration: "0s" },
-  //   { target: 1000, duration: "15s" },
-  // ],
-  // thresholds: {
-  //   http_req_duration: ["avg<50"],
-  // },
   scenarios: {
     constant_request_rate: {
       executor: "constant-arrival-rate",

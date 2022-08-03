@@ -127,6 +127,11 @@ client
   })
   .then(() => {
     return client.query(
+      "UPDATE reviews SET response = null WHERE response = 'null';"
+    );
+  })
+  .then(() => {
+    return client.query(
       `SELECT
       SETVAL(
         (SELECT PG_GET_SERIAL_SEQUENCE('"reviews"', 'id')),
