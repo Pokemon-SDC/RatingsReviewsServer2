@@ -16,7 +16,7 @@ const reviewsString =
     count_reviews \
   AS \
     (SELECT * from reviews r where r.product_id = $1 order by id limit $2 offset $3) \
-    SELECT JSON_BUILD_OBJECT('product_id',$1::int, 'results', JSON_AGG(results), 'page', $5::int, 'count', COUNT(results)) from (\
+    SELECT JSON_BUILD_OBJECT('product_id',$1::int, 'page', $5::int, 'count', COUNT(results), 'results', JSON_AGG(results)) from (\
   SELECT \
     count_reviews.body, \
     COALESCE(photoJoinArr, '[]') photos, \
@@ -213,7 +213,6 @@ module.exports = {
       )
       .then((data) => {
         res.status(200).send(data[0].rows[0].json_build_object);
-        // return data[0].rows[0].json_build_object;
       })
       .catch((err) => {
         console.log(err);
@@ -327,7 +326,6 @@ module.exports = {
       req.body.recommend,
       0,
     ];
-    // clean this up omg;
     try {
       await client.query("BEGIN");
       let reviewId = await client.query(reviewQuery, reviewValues);

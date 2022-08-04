@@ -8,8 +8,6 @@ var characteristic_reviews_path = path.resolve(
   "./data/characteristic_reviews.csv"
 );
 
-console.log(reviews_path);
-
 let connection = `postgresql://${process.env.DB_USER}:${process.env.DB_PASS}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;
 
 let client = new pg.Client(connection);
@@ -63,6 +61,7 @@ let characteristic_reviews_table = `CREATE TABLE characteristic_reviews (\
 
 let review_rating_idx = `CREATE INDEX reviews_rating_idx ON "reviews"(rating);`;
 let reviews_product_id_idx = `CREATE INDEX reviews_product_id_idx ON "reviews"(product_id);`;
+let reviews_product_review_id_idx_pair = `CREATE INDEX reviews_product_review_id_idx_pair ON "reviews"(id, product_id);`;
 let photos_review_id_idx = `CREATE INDEX photos_review_id_idx ON "photos"(review_id)`;
 let char_product_id_idx = `CREATE INDEX char_product_id_idx ON "characteristics"(product_id);`;
 let char_reviews_char_id_idx = `CREATE INDEX char_reviews_char_id_idx ON "characteristic_reviews"(char_id);`;
@@ -120,6 +119,9 @@ client
   })
   .then(() => {
     return client.query(char_reviews_char_id_idx);
+  })
+  .then(() => {
+    return client.query(reviews_product_review_id_idx_pair);
   })
   .then(() => {
     console.log("copying reviews table ...");
