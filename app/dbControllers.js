@@ -11,6 +11,52 @@ const pool = new Pool({
   database: process.env.DB_NAME || process.env.DB_NAME,
 });
 const db = Promise.promisifyAll(pool, { multiArgs: true });
+const reviewsString =
+  "WITH \
+    count_reviews \
+  AS \
+    (SELECT * from reviews r where r.product_id = $1 order by id limit $2 offset $3) \
+    SELECT JSON_BUILD_OBJECT('product_id',$1::int, 'results', JSON_AGG(results), 'page', $5::int, 'count', COUNT(results)) from (\
+  SELECT \
+    count_reviews.body, \
+    COALESCE(photoJoinArr, '[]') photos, \
+    TO_TIMESTAMP(count_reviews.created_at/1000) date, \
+    count_reviews.helpfulness, \
+    count_reviews.rating, \
+    count_reviews.recommend, \
+    count_reviews.response, \
+    count_reviews.id, \
+    count_reviews.reviewer_name, \
+    count_reviews.summary \
+  FROM \
+    count_reviews \
+  LEFT JOIN \
+    ( \
+    SELECT \
+      count_reviews.id, \
+      JSON_AGG(JSON_BUILD_OBJECT(p.id, p.url)) photoJoinArr \
+    FROM \
+      photos p \
+    INNER JOIN \
+      count_reviews \
+    ON \
+      p.review_id = count_reviews.id \
+    group by count_reviews.id \
+    ) photoJoin \
+  ON \
+    photoJoin.id = count_reviews.id \
+  WHERE \
+    count_reviews.product_id = $1 \
+  AND \
+    count_reviews.reported = false \
+  ORDER BY \
+  $4) results";
+
+const sorts = {
+  helpful: "count_reviews.helpfulness DESC",
+  newest: "count_reviews.created_at DESC",
+  relevant: "count_reviews.helpfulness DESC, count_reviews.created_at DESC",
+};
 
 module.exports = {
   getCount: function (table) {
@@ -20,140 +66,86 @@ module.exports = {
   },
 
   getReviewsById: function (req, res) {
-    console.log(req.query.product_id);
     let { product_id, page, count, sort } = req.query;
-    let sortMethod = "count_reviews.id ASC";
-    let offset = page * count - count;
-    if (sort === "helpful") {
-      sortMethod = "count_reviews.helpfulness DESC";
-    } else if (sort === "newest") {
-      sortMethod = "count_reviews.created_at DESC";
-    } else if (sort === "relevant") {
-      sortMethod =
-        "count_reviews.helpfulness DESC, count_reviews.created_at DESC";
-    }
-
-    let someQuery = {
-      text: "WITH\
-      count_reviews\
-  AS\
-      (SELECT * from reviews r where r.product_id = $1 limit $2 offset $3)\
-  SELECT\
-    count_reviews.body,\
-    count_reviews.created_at date,\
-    count_reviews.helpfulness,\
-    JSON_AGG(photoJoin.photoJoinObj) photos,\
-    count_reviews.rating,\
-    count_reviews.recommend,\
-    count_reviews.response,\
-    count_reviews.id,\
-    count_reviews.reviewer_name,\
-    count_reviews.summary\
-  FROM\
-    count_reviews\
-  LEFT JOIN\
-    (\
-      SELECT\
-        p.review_id,\
-        JSON_BUILD_OBJECT(p.id, p.url) photoJoinObj\
-      FROM\
-        photos p\
-      INNER JOIN\
-        count_reviews\
-      ON\
-        p.review_id = count_reviews.id\
-      ) photoJoin\
-  ON\
-    photoJoin.review_id = count_reviews.id\
-  WHERE\
-    count_reviews.product_id = $1\
-  AND\
-    count_reviews.reported = false\
-  GROUP BY\
-    count_reviews.id,\
-    count_reviews.body,\
-    count_reviews.created_at,\
-    count_reviews.helpfulness,\
-    count_reviews.rating,\
-    count_reviews.recommend,\
-    count_reviews.response,\
-    count_reviews.reviewer_name,\
-    count_reviews.summary\
-  ORDER BY\
-    $4;",
-      values: [product_id, count, page * count - count, sortMethod],
+    const sortMethod = sorts[sort] || "count_reviews.id ASC";
+    const offset = page * count - count;
+    const reviewQuery = {
+      text: reviewsString,
+      values: [product_id, count, page * count - count, sortMethod, page],
     };
+    // return (
+    //   db
+    //     .queryAsync(
+    //       `
+    //   WITH
+    //       count_reviews
+    //   AS
+    //       (SELECT * from reviews r where r.product_id = ${product_id} limit ${count} offset ${offset})
+    //   SELECT
+    //     count_reviews.body,
+    //     count_reviews.created_at date,
+    //     count_reviews.helpfulness,
+    //     JSON_AGG(photoJoin.photoJoinObj) photos,
+    //     count_reviews.rating,
+    //     count_reviews.recommend,
+    //     count_reviews.response,
+    //     count_reviews.id,
+    //     count_reviews.reviewer_name,
+    //     count_reviews.summary
+    //   FROM
+    //     count_reviews
+    //   LEFT JOIN
+    //     (
+    //       SELECT
+    //         p.review_id,
+    //         JSON_BUILD_OBJECT(p.id, p.url) photoJoinObj
+    //       FROM
+    //         photos p
+    //       INNER JOIN
+    //         count_reviews
+    //       ON
+    //         p.review_id = count_reviews.id
+    //       ) photoJoin
+    //   ON
+    //     photoJoin.review_id = count_reviews.id
+    //   WHERE
+    //     count_reviews.product_id = ${product_id}
+    //   AND
+    //     count_reviews.reported = false
+    //   GROUP BY
+    //     count_reviews.id,
+    //     count_reviews.body,
+    //     count_reviews.created_at,
+    //     count_reviews.helpfulness,
+    //     count_reviews.rating,
+    //     count_reviews.recommend,
+    //     count_reviews.response,
+    //     count_reviews.reviewer_name,
+    //     count_reviews.summary
+    //   ORDER BY
+    //     ${sortMethod};`
+    //     )
     return (
       db
-        .queryAsync(
-          `
-      WITH
-          count_reviews
-      AS
-          (SELECT * from reviews r where r.product_id = ${product_id} limit ${count} offset ${offset})
-      SELECT
-        count_reviews.body,
-        count_reviews.created_at date,
-        count_reviews.helpfulness,
-        JSON_AGG(photoJoin.photoJoinObj) photos,
-        count_reviews.rating,
-        count_reviews.recommend,
-        count_reviews.response,
-        count_reviews.id,
-        count_reviews.reviewer_name,
-        count_reviews.summary
-      FROM
-        count_reviews
-      LEFT JOIN
-        (
-          SELECT
-            p.review_id,
-            JSON_BUILD_OBJECT(p.id, p.url) photoJoinObj
-          FROM
-            photos p
-          INNER JOIN
-            count_reviews
-          ON
-            p.review_id = count_reviews.id
-          ) photoJoin
-      ON
-        photoJoin.review_id = count_reviews.id
-      WHERE
-        count_reviews.product_id = ${product_id}
-      AND
-        count_reviews.reported = false
-      GROUP BY
-        count_reviews.id,
-        count_reviews.body,
-        count_reviews.created_at,
-        count_reviews.helpfulness,
-        count_reviews.rating,
-        count_reviews.recommend,
-        count_reviews.response,
-        count_reviews.reviewer_name,
-        count_reviews.summary
-      ORDER BY
-        ${sortMethod};`
-        )
-        // return db
-        //   .query(someQuery)
+        .query(reviewQuery)
         .then((data) => {
-          console.log(data[0].rows);
-          data[0].rows.forEach(function (obj) {
-            if (obj.photos[0] === null) {
-              obj.photos = [];
-            }
-            obj.date = new Date(parseInt(obj.date));
-          });
-          let responseObject = {
-            product_id: product_id,
-            page: page,
-            count: data[0].rows.length,
-            results: data[0].rows,
-          };
-          console.log(responseObject);
-          res.status(200).send(responseObject);
+          res.send(data.rows[0].json_build_object);
         })
+        //   data.rows.forEach(function (obj) {
+        //     if (obj.photos === null) {
+        //       obj.photos = [];
+        //     }
+        //     obj.date = new Date(parseInt(obj.date));
+        //   });
+        //   let responseObject = {
+        //     product_id: product_id,
+        //     page: page,
+        //     count: data.rows.length,
+        //     results: data.rows,
+        //   };
+        //   console.log(responseObject);
+        //   res.status(200).send(responseObject);
+        // })
         .catch((err) => {
           console.log(err);
           res.status(400).send(err);

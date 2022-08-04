@@ -9,7 +9,7 @@ export let options = {
       timeUnit: "1s",
       duration: "30s",
       preAllocatedVUs: 1000,
-      maxVUs: 2000,
+      maxVUs: 1000,
     },
   },
 };
@@ -34,8 +34,9 @@ let review = {
 // };
 
 export default () => {
-  let randomId = Math.round(Math.random() * 100000);
-  http.get(
-    `http://localhost:3001/reviews/?product_id=${randomId}&sort=relevant&count=5&page=1`
-  );
+  // let randomId = Math.round(Math.random() * 100000);
+  // if (randomId === 5) {
+  //   randomId = 1;
+  // }
+  http.get(`http://localhost:3001/reviews/?product_id=1&count=5&page=1`);
 };

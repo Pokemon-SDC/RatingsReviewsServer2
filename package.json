@@ -6,6 +6,7 @@
   "scripts": {
     "initialize": "node scripts/initializeDB.js",
     "start": "nodemon app/index.js",
+    "prod": "NODE_ENV=production node app/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
