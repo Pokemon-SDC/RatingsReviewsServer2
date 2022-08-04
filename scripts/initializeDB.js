@@ -1,11 +1,11 @@
 const pg = require("pg");
 const path = require("path");
 require("dotenv").config();
-var reviews_path = path.resolve("./data/reviews.csv");
-var photos_path = path.resolve("./data/reviews_photos.csv");
-var characteristics_path = path.resolve("./data/characteristics.csv");
+var reviews_path = path.resolve("data/reviews.csv");
+var photos_path = path.resolve("data/reviews_photos.csv");
+var characteristics_path = path.resolve("data/characteristics.csv");
 var characteristic_reviews_path = path.resolve(
-  "./data/characteristic_reviews.csv"
+  "data/characteristic_reviews.csv"
 );
 
 let connection = `postgresql://${process.env.DB_USER}:${process.env.DB_PASS}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;

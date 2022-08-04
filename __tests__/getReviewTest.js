@@ -39,6 +39,6 @@ export default () => {
     randomId = 1;
   }
   http.get(
-    `http://localhost:3001/reviews/?product_id=${randomId}&count=5&page=1`
+    `http://localhost:3000/reviews/?product_id=${randomId}&count=5&page=1`
   );
 };
